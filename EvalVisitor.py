@@ -24,22 +24,27 @@ class EvalVisitor(exprVisitor):
             return False
         elif var_type == "string":
             return ""
+        elif var_type == "file":
+            return "./"
         else:
             raise Exception(f"Unknown type '{var_type}'")
 
     def check_type(self, expected_type: str, actual_value, context_info=""):
         actual_type = self.type_of_value(actual_value)
+        if expected_type == "file" and actual_type == "string":
+            return
+
         if expected_type != actual_type:
             raise Exception(
                 f"Type mismatch{f' in {context_info}' if context_info else ''}: expected {expected_type}, got {actual_type}")
 
     def type_of_value(self, value):
-        if isinstance(value, int):
+        if isinstance(value, bool):
+            return "bool"
+        elif isinstance(value, int):
             return "int"
         elif isinstance(value, float):
             return "float"
-        elif isinstance(value, bool):
-            return "bool"
         elif isinstance(value, str):
             return "string"
         else:
@@ -64,7 +69,8 @@ class EvalVisitor(exprVisitor):
 
         if decl_ctx.expr():
             value = self.visit(decl_ctx.expr())
-            if var_type == "float" and isinstance(value, int):  # exception that if we assign 5 it will be 5.0
+            # exception that if we assign 5 it will be 5.0
+            if var_type == "float" and isinstance(value, int) and not isinstance(value, bool):
                 value = float(value)
             else:
                 self.check_type(var_type, value, f"declaration of {vars[0].getText()}")
@@ -90,7 +96,8 @@ class EvalVisitor(exprVisitor):
         value = self.visit(ctx.expr())
         expected_type = self.types[var_name]
 
-        if expected_type == "float" and isinstance(value, int):  # exception that if we assign 5 it will be 5.0
+        # exception that if we assign 5 it will be 5.0
+        if expected_type == "float" and isinstance(value, int) and not isinstance(value, bool):
             value = float(value)
         else:
             self.check_type(expected_type, value, f"assignment to {var_name}")
@@ -117,6 +124,9 @@ class EvalVisitor(exprVisitor):
 
     def visitFloat(self, ctx: exprParser.FloatContext):
         return float(ctx.FLOAT().getText())
+
+    def visitFile(self, ctx: exprParser.FileContext):
+        return str(ctx.FILE().getText())[1:-1]
 
     def visitParantheses(self, ctx: exprParser.ParanthesesContext):
         return self.visit(ctx.expr())
@@ -328,3 +338,24 @@ class EvalVisitor(exprVisitor):
             values.append(str(val))
         output = " ".join(values)
         return output
+
+    def visitFilewrite(self, ctx: exprParser.FilewriteContext):
+        var_name = ctx.ID().getText()
+        var_type = self.types[var_name]
+
+        if var_name not in self.memory:
+            raise Exception(f"Variable '{var_name}' not declared before write.")
+
+        if var_type != "file":
+            raise Exception(f"Unsupported type '{var_type}' in write")
+
+        expr_written = []
+        for expr in ctx.expr():
+            value = self.visit(expr)
+            expr_type = self.type_of_value(value)
+
+            if expr_type not in ["int", "float", "string"]:
+                raise Exception(f"Unsupported type '{expr_type}' in write")
+            expr_written.append(value)
+
+        return expr_written

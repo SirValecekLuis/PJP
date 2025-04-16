@@ -54,6 +54,11 @@ class exprVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by exprParser#filewrite.
+    def visitFilewrite(self, ctx:exprParser.FilewriteContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by exprParser#newline.
     def visitNewline(self, ctx:exprParser.NewlineContext):
         return self.visitChildren(ctx)
@@ -116,6 +121,11 @@ class exprVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by exprParser#logicand.
     def visitLogicand(self, ctx:exprParser.LogicandContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by exprParser#file.
+    def visitFile(self, ctx:exprParser.FileContext):
         return self.visitChildren(ctx)
 
 
