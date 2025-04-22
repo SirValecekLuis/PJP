@@ -18,6 +18,7 @@ class EvalVisitor(exprVisitor):
         self.label_counter = 0
         self.code = []
         self.generate_code = False
+        self._just_declared = set()
 
     def set_code_generation(self, generate, output_file=None):
         self.generate_code = generate
@@ -65,7 +66,7 @@ class EvalVisitor(exprVisitor):
         elif var_type == "float":
             return 0.0
         elif var_type == "bool":
-            return False
+            return "false"
         elif var_type == "string":
             return '""'
         else:
@@ -127,6 +128,7 @@ class EvalVisitor(exprVisitor):
                             raise Exception(f"Proměnná {variable_id} již byla deklarována")
 
                         self.current_scope[variable_id] = var_type
+                        self._just_declared.add(variable_id)
 
                         if self.generate_code:
                             default_value = self.default_value_for_type(var_type)
@@ -140,6 +142,7 @@ class EvalVisitor(exprVisitor):
                         raise Exception(f"Proměnná {variable_id} již byla deklarována")
 
                     self.current_scope[variable_id] = var_type
+                    self._just_declared.add(variable_id)
 
                     if self.generate_code:
                         default_value = self.default_value_for_type(var_type)
@@ -153,22 +156,21 @@ class EvalVisitor(exprVisitor):
         variable_id = ctx.ID().getText()
         expression = ctx.expr()
 
-        var_type = self.check_type(variable_id)
+        var_type = self.check_variable_type(variable_id)
         expr_result = self.visit(expression)
         expr_type = self.type_of_value(expr_result)
 
+        # Kontrola kompatibility typů
         if var_type == "int" and expr_type == "float":
             raise Exception(f"Nelze přiřadit float do int")
 
         if self.generate_code:
             if var_type == "float" and expr_type == "int":
-                self.code.append(f"push I {expr_result}")
-                self.code.append("itof")  # Konverze int na float
+                self.code.append("itof")
+                self.code.append(f"save {variable_id}")
             else:
-                type_code = self.type_to_code(var_type)
-                self.code.append(f"push {type_code} {expr_result}")
+                self.code.append(f"save {variable_id}")
 
-            self.code.append(f"save {variable_id}")
             self.code.append(f"load {variable_id}")
             self.code.append("pop")
 
@@ -303,11 +305,8 @@ class EvalVisitor(exprVisitor):
         return left + right
 
     def visitAssignexpr(self, ctx):
-
         variable_id = ctx.ID().getText()
-
-        variable_type = self.check_type(variable_id)
-
+        variable_type = self.check_variable_type(variable_id)
         expr_value = self.visit(ctx.expr())
 
         if expr_value is None:
@@ -411,14 +410,23 @@ class EvalVisitor(exprVisitor):
 
         type_code = "I" if isinstance(left, int) and isinstance(right, int) else "F"
 
-        if isinstance(left, int) and isinstance(right, float) and self.generate_code:
-            self.code.append("save __temp__")
-            self.code.append(f"push I {left}")
-            self.code.append("itof")
-            self.code.append("load __temp__")
+        if self.generate_code and isinstance(left, int) and isinstance(right, float):
+            push_left_index = None
+            push_right_index = None
 
-        if isinstance(left, float) and isinstance(right, int) and self.generate_code:
-            self.code.append("itof")
+            for i in range(len(self.code) - 1, -1, -1):
+                if "push" in self.code[i]:
+                    if push_right_index is None:
+                        push_right_index = i
+                    else:
+                        push_left_index = i
+                        break
+
+            if push_left_index is not None and push_right_index is not None:
+                self.code.insert(push_left_index + 1, "itof")
+
+                push_right = self.code.pop(push_right_index + 1)
+                self.code.append(push_right)
 
         if self.generate_code:
             if op == "<":
@@ -442,16 +450,12 @@ class EvalVisitor(exprVisitor):
             type_code = "F"
 
             if isinstance(left, int) and self.generate_code:
-                self.code.append("save __temp__")
-                self.code.append(f"push I {left}")
                 self.code.append("itof")
-                self.code.append("load __temp__")
             elif isinstance(right, int) and self.generate_code:
                 self.code.append("itof")
         elif isinstance(left, str) and isinstance(right, str):
             type_code = "S"
         else:
-
             raise Exception(f"Equality operator '{op}' used with incompatible types: {type(left)} and {type(right)}")
 
         if self.generate_code:
@@ -465,7 +469,6 @@ class EvalVisitor(exprVisitor):
             return left != right
 
     def visitIfstatement(self, ctx):
-
         else_label = self.generate_new_label()
         end_label = self.generate_new_label()
 
@@ -583,7 +586,7 @@ class EvalVisitor(exprVisitor):
             variable_ids = [id_tokens.getText()]
 
         for variable_id in variable_ids:
-            var_type = self.check_type(variable_id)
+            var_type = self.check_variable_type(variable_id)
 
             if self.generate_code:
                 self.code.append(f"read {self.type_to_code(var_type)}")
@@ -653,7 +656,7 @@ class EvalVisitor(exprVisitor):
 
         return expr_value
 
-    def check_type(self, variable_id, actual_value=None):
+    def check_variable_type(self, variable_id, actual_value=None):
         if variable_id not in self.current_scope:
             for scope in self.scopes:
                 if variable_id in scope:
