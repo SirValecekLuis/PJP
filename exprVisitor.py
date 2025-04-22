@@ -54,6 +54,11 @@ class exprVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by exprParser#emptysemicolon.
+    def visitEmptysemicolon(self, ctx:exprParser.EmptysemicolonContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by exprParser#newline.
     def visitNewline(self, ctx:exprParser.NewlineContext):
         return self.visitChildren(ctx)

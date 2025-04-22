@@ -4,13 +4,14 @@ prog: stat+;
 
 stat
     : decl                           # declar
-    | ID '=' expr (NEWLINE)?            # assign
-    | expr (NEWLINE)?                   # printvar
-    | 'read' ID (',' ID)*            # read
-    | 'write' expr (',' expr)*       # write
-    | 'while' '(' expr ')' '{' stat+ '}'   # while
-    | 'if' '(' expr ')' '{' stat+ '}' ('else' '{' stat+ '}')? # ifstatement
-    | '{' stat+ '}'                  # multistatement
+    | ID '=' expr (';')* (NEWLINE)?            # assign
+    | expr (';')* (NEWLINE)?                   # printvar
+    | 'read' ID (',' ID)* (';')* (NEWLINE)?           # read
+    | 'write' expr (',' expr)* (';')* (NEWLINE)?      # write
+    | 'while' '(' expr ')' '{' stat+ '}' (';')* (NEWLINE)?  # while
+    | 'if' '(' expr ')' '{' stat+ '}' ('else' '{' stat+ '}')? (';')* (NEWLINE)? # ifstatement
+    | '{' stat+ '}' (';')* (NEWLINE)?                  # multistatement
+    | ';'                         # emptysemicolon
     | NEWLINE                        # newline
     ;
 
@@ -35,8 +36,9 @@ expr
 
 
 vartype: 'int' | 'float' | 'bool' | 'string';
-decl: vartype ID (',' ID)* ('=' expr)? (NEWLINE)?;
+decl: vartype ID (',' ID)* ('=' expr)? (';')* (NEWLINE)?;
 
+COMMENT : '//' ~[\r\n]* -> skip;
 BOOL   : 'true' | 'false' ;
 ID     : [a-zA-Z][a-zA-Z0-9]* ;
 INT    : [0-9]+ ;

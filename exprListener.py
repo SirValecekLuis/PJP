@@ -89,6 +89,15 @@ class exprListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by exprParser#emptysemicolon.
+    def enterEmptysemicolon(self, ctx:exprParser.EmptysemicolonContext):
+        pass
+
+    # Exit a parse tree produced by exprParser#emptysemicolon.
+    def exitEmptysemicolon(self, ctx:exprParser.EmptysemicolonContext):
+        pass
+
+
     # Enter a parse tree produced by exprParser#newline.
     def enterNewline(self, ctx:exprParser.NewlineContext):
         pass
