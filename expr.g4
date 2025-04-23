@@ -9,7 +9,7 @@ stat
     | 'read' ID (',' ID)* (';')* (NEWLINE)?           # read
     | 'write' expr (',' expr)* (';')* (NEWLINE)?      # write
     | 'while' '(' expr ')' '{' stat+ '}' (';')* (NEWLINE)?  # while
-    | 'if' '(' expr ')' '{' stat+ '}' ('else' '{' stat+ '}')? (';')* (NEWLINE)? # ifstatement
+    | 'if' '(' expr ')' ('{' stat+ '}' | stat) ('else' ('{' stat+ '}' | stat))? (';')* (NEWLINE)? # ifstatement
     | '{' stat+ '}' (';')* (NEWLINE)?                  # multistatement
     | ';'                         # emptysemicolon
     | NEWLINE                        # newline

@@ -7,11 +7,9 @@ class StackInterpreter:
         self.instructions = []
 
     def load_program(self, filename):
-        """Načte program ze souboru a najde všechna návěští"""
         with open(filename, 'r') as f:
             self.instructions = [line.strip() for line in f if line.strip()]
 
-        # Najít všechny návěští v programu
         for i, instruction in enumerate(self.instructions):
             parts = instruction.split()
             if parts[0] == "label":
@@ -19,7 +17,6 @@ class StackInterpreter:
                 self.labels[label_num] = i
 
     def execute(self):
-        """Provede všechny instrukce programu"""
         self.instruction_pointer = 0
         while self.instruction_pointer < len(self.instructions):
             instruction = self.instructions[self.instruction_pointer]
@@ -27,11 +24,9 @@ class StackInterpreter:
             self.instruction_pointer += 1
 
     def execute_instruction(self, instruction):
-        """Provede jednu instrukci"""
         parts = instruction.split()
         cmd = parts[0]
 
-        # Aritmetické operace
         if cmd == "add":
             type_code = parts[1]
             b = self.stack.pop()
@@ -66,13 +61,13 @@ class StackInterpreter:
             a = self.stack.pop()
             self.stack.append(-a)
 
-        # String operace
+
         elif cmd == "concat":
             b = self.stack.pop()
             a = self.stack.pop()
             self.stack.append(a + b)
 
-        # Logické operace
+
         elif cmd == "and":
             b = self.stack.pop()
             a = self.stack.pop()
@@ -83,7 +78,7 @@ class StackInterpreter:
             a = self.stack.pop()
             self.stack.append(a or b)
 
-        # Porovnávací operace
+
         elif cmd == "gt":
             type_code = parts[1]
             b = self.stack.pop()
@@ -106,12 +101,12 @@ class StackInterpreter:
             a = self.stack.pop()
             self.stack.append(not a)
 
-        # Konverze typů
+
         elif cmd == "itof":
             a = self.stack.pop()
             self.stack.append(float(a))
 
-        # Práce se zásobníkem
+
         elif cmd == "push":
             type_code = parts[1]
             value = ' '.join(parts[2:])
@@ -123,7 +118,7 @@ class StackInterpreter:
             elif type_code == "B":
                 self.stack.append(value.lower() == "true")
             elif type_code == "S":
-                # Odstranit uvozovky, pokud existují
+
                 if value.startswith('"') and value.endswith('"'):
                     value = value[1:-1]
                 self.stack.append(value)
@@ -131,7 +126,7 @@ class StackInterpreter:
         elif cmd == "pop":
             self.stack.pop()
 
-        # Práce s proměnnými
+
         elif cmd == "load":
             var_name = parts[1]
             if var_name in self.variables:
@@ -143,15 +138,14 @@ class StackInterpreter:
             var_name = parts[1]
             self.variables[var_name] = self.stack.pop()
 
-        # Návěští a skoky
+
         elif cmd == "label":
-            # Již zpracováno během načítání programu
             pass
 
         elif cmd == "jmp":
             label_num = int(parts[1])
             if label_num in self.labels:
-                self.instruction_pointer = self.labels[label_num] - 1  # -1 protože po provedení se zvedne o 1
+                self.instruction_pointer = self.labels[label_num] - 1
             else:
                 raise Exception(f"Návěští {label_num} nenalezeno")
 
@@ -164,7 +158,7 @@ class StackInterpreter:
                 else:
                     raise Exception(f"Návěští {label_num} nenalezeno")
 
-        # I/O operace
+
         elif cmd == "print":
             n = int(parts[1])
             values = []

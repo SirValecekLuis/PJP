@@ -29,6 +29,7 @@ class EvalVisitor(exprVisitor):
             self.scopes = [self.current_scope]
             self.memory = {}
             self.code = []
+            self.label_counter = 0
 
     def get_code(self):
         return self.code
@@ -160,7 +161,6 @@ class EvalVisitor(exprVisitor):
         expr_result = self.visit(expression)
         expr_type = self.type_of_value(expr_result)
 
-        # Kontrola kompatibility typů
         if var_type == "int" and expr_type == "float":
             raise Exception(f"Nelze přiřadit float do int")
 
@@ -349,6 +349,9 @@ class EvalVisitor(exprVisitor):
             if not isinstance(val, (int, float)):
                 raise Exception(f"Operator '{op}' used with non-numeric value: {val}")
 
+        if op == "%" and (isinstance(left, float) or isinstance(right, float)):
+            raise Exception("Modulo operation not supported for float values")
+
         type_code = "I" if isinstance(left, int) and isinstance(right, int) else "F"
 
         if isinstance(left, int) and isinstance(right, float) and self.generate_code:
@@ -479,21 +482,26 @@ class EvalVisitor(exprVisitor):
             self.code.append(f"fjmp {else_label}")
 
         if condition or self.generate_code:
+            then_start_idx = 4
 
-            new_scope = {}
-            self.scopes.append(new_scope)
-            self.current_scope = new_scope
+            if ctx.getChild(then_start_idx).getText() == '{':
+                new_scope = {}
+                self.scopes.append(new_scope)
+                self.current_scope = new_scope
 
-            results = []
-            for i in range(5, ctx.getChildCount()):
-                if ctx.getChild(i).getText() == '}':
-                    break
-                result = self.visit(ctx.getChild(i))
-                if result is not None:
-                    results.append(result)
+                then_start = then_start_idx + 1
+                then_end = then_start
+                while then_end < ctx.getChildCount() and ctx.getChild(then_end).getText() != '}':
+                    then_end += 1
 
-            self.scopes.pop()
-            self.current_scope = self.scopes[-1]
+                for i in range(then_start, then_end):
+                    self.visit(ctx.getChild(i))
+
+                self.scopes.pop()
+                self.current_scope = self.scopes[-1]
+            else:
+
+                self.visit(ctx.getChild(then_start_idx))
 
             if self.generate_code:
                 self.code.append(f"jmp {end_label}")
@@ -509,13 +517,19 @@ class EvalVisitor(exprVisitor):
                     self.scopes.append(new_scope)
                     self.current_scope = new_scope
 
-                    results = []
-                    j = i + 2
-                    while j < ctx.getChildCount() and ctx.getChild(j).getText() != '}':
-                        result = self.visit(ctx.getChild(j))
-                        if result is not None:
-                            results.append(result)
-                        j += 1
+                    else_idx = i + 1
+
+                    if else_idx < ctx.getChildCount() and ctx.getChild(else_idx).getText() == '{':
+                        else_start = else_idx + 1
+                        else_end = else_start
+                        while else_end < ctx.getChildCount() and ctx.getChild(else_end).getText() != '}':
+                            else_end += 1
+
+                        for j in range(else_start, else_end):
+                            self.visit(ctx.getChild(j))
+                    else:
+
+                        self.visit(ctx.getChild(else_idx))
 
                     self.scopes.pop()
                     self.current_scope = self.scopes[-1]
@@ -524,56 +538,58 @@ class EvalVisitor(exprVisitor):
         if self.generate_code:
             self.code.append(f"label {end_label}")
 
-        return results if condition else ([] if not has_else else results)
-
-    def visitMultistatement(self, ctx):
-
-        for statement in ctx.statement():
-            self.visit(statement)
-
         return None
 
-    def visitWhile(self, ctx: exprParser.WhileContext):
-
-        if self.generate_code:
-            start_label = self.generate_new_label()
-            end_label = self.generate_new_label()
-            self.code.append(f"label {start_label}")
-
-            self.visit(ctx.expr())
-            self.code.append(f"fjmp {end_label}")
-
-            for i in range(5, ctx.getChildCount() - 1):
-                if ctx.getChild(i).getText() != '}':
-                    self.visit(ctx.getChild(i))
-
-            self.code.append(f"jmp {start_label}")
-            self.code.append(f"label {end_label}")
-            return []
+    def visitMultistatement(self, ctx):
+        new_scope = {}
+        self.scopes.append(new_scope)
+        self.current_scope = new_scope
 
         results = []
-        while True:
-            condition = self.visit(ctx.expr())
-            self.check_type("bool", condition, "while condition")
+        for stat in ctx.stat():
+            result = self.visit(stat)
+            if result is not None:
+                results.append(result)
 
-            if not condition:
-                break
+        self.scopes.pop()
+        self.current_scope = self.scopes[-1]
 
+        return results
+
+    def visitWhile(self, ctx: exprParser.WhileContext):
+        start_label = self.generate_new_label()
+        end_label = self.generate_new_label()
+
+        if self.generate_code:
+            self.code.append(f"label {start_label}")
+
+        condition = self.visit(ctx.expr())
+        self.check_type("bool", condition, "while condition")
+
+        if self.generate_code:
+            self.code.append(f"fjmp {end_label}")
+
+        results = []
+        if condition or self.generate_code:
             new_scope = {}
             self.scopes.append(new_scope)
             self.current_scope = new_scope
 
             block_results = []
-            for i in range(5, ctx.getChildCount() - 1):
-                if ctx.getChild(i).getText() != '}':
-                    result = self.visit(ctx.getChild(i))
-                    if result is not None:
-                        block_results.append(result)
+            for stat in ctx.stat():
+                result = self.visit(stat)
+                if result is not None:
+                    block_results.append(result)
 
             results.append(block_results)
 
             self.scopes.pop()
             self.current_scope = self.scopes[-1]
+
+            if self.generate_code:
+                self.code.append(f"jmp {start_label}")
+                self.code.append(f"label {end_label}")
+                return results
 
         return results
 
