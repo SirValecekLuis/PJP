@@ -89,6 +89,15 @@ class exprListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by exprParser#filewrite.
+    def enterFilewrite(self, ctx:exprParser.FilewriteContext):
+        pass
+
+    # Exit a parse tree produced by exprParser#filewrite.
+    def exitFilewrite(self, ctx:exprParser.FilewriteContext):
+        pass
+
+
     # Enter a parse tree produced by exprParser#emptysemicolon.
     def enterEmptysemicolon(self, ctx:exprParser.EmptysemicolonContext):
         pass
@@ -212,6 +221,15 @@ class exprListener(ParseTreeListener):
 
     # Exit a parse tree produced by exprParser#logicand.
     def exitLogicand(self, ctx:exprParser.LogicandContext):
+        pass
+
+
+    # Enter a parse tree produced by exprParser#file.
+    def enterFile(self, ctx:exprParser.FileContext):
+        pass
+
+    # Exit a parse tree produced by exprParser#file.
+    def exitFile(self, ctx:exprParser.FileContext):
         pass
 
 
