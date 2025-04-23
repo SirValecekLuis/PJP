@@ -11,6 +11,7 @@ stat
     | 'while' '(' expr ')' '{' stat+ '}' (';')* (NEWLINE)?  # while
     | 'if' '(' expr ')' ('{' stat+ '}' | stat) ('else' ('{' stat+ '}' | stat))? (';')* (NEWLINE)? # ifstatement
     | '{' stat+ '}' (';')* (NEWLINE)?                  # multistatement
+    | ID '<<' expr ('<<' expr)* (';')* (NEWLINE)?  # filewrite
     | ';'                         # emptysemicolon
     | NEWLINE                        # newline
     ;
@@ -26,6 +27,7 @@ expr
     | expr ('=='|'!=') expr          # isequal
     | expr '&&' expr                 # logicand
     | expr '||' expr                 # logicor
+    | FILE                          # file
     | INT                           # int
     | FLOAT                         # float
     | BOOL                          # bool
@@ -35,7 +37,7 @@ expr
     ;
 
 
-vartype: 'int' | 'float' | 'bool' | 'string';
+vartype: 'int' | 'float' | 'bool' | 'string' | 'file';
 decl: vartype ID (',' ID)* ('=' expr)? (';')* (NEWLINE)?;
 
 COMMENT : '//' ~[\r\n]* -> skip;
@@ -44,5 +46,6 @@ ID     : [a-zA-Z][a-zA-Z0-9]* ;
 INT    : [0-9]+ ;
 FLOAT  : [0-9]+ '.' [0-9]+ ;
 STRING : '"' .*? '"' ;
+FILE   : STRING;
 NEWLINE: '\r'? '\n' ;
 WS     : [ \t]+ -> skip ;

@@ -70,11 +70,16 @@ class EvalVisitor(exprVisitor):
             return "false"
         elif var_type == "string":
             return '""'
+        elif var_type == "file":
+            return "./"
         else:
             raise Exception(f"Unknown type '{var_type}'")
 
     def check_type(self, expected_type: str, actual_value, context_info=""):
         actual_type = self.type_of_value(actual_value)
+        if expected_type == "file" and actual_type == "string":
+            return
+
         if expected_type != actual_type:
             raise Exception(
                 f"Type mismatch{f' in {context_info}' if context_info else ''}: expected {expected_type}, got {actual_type}")
@@ -252,6 +257,9 @@ class EvalVisitor(exprVisitor):
             self.code.append(f"push F {value}")
 
         return value
+
+    def visitFile(self, ctx: exprParser.FileContext):
+        return str(ctx.FILE().getText())[1:-1]
 
     def visitParantheses(self, ctx: exprParser.ParanthesesContext):
         return self.visit(ctx.expr())
@@ -624,6 +632,7 @@ class EvalVisitor(exprVisitor):
         output = " ".join(values)
         return output
 
+
     def visitAssignMultiple(self, ctx):
 
         variable_ids = []
@@ -688,3 +697,24 @@ class EvalVisitor(exprVisitor):
                     f"Typová neshoda: {variable_id} je typu {variable_type}, ale přiřazovaná hodnota je typu {value_type}")
 
         return variable_type
+
+    def visitFilewrite(self, ctx: exprParser.FilewriteContext):
+        var_name = ctx.ID().getText()
+        var_type = self.types[var_name]
+
+        if var_name not in self.memory:
+            raise Exception(f"Variable '{var_name}' not declared before write.")
+
+        if var_type != "file":
+            raise Exception(f"Unsupported type '{var_type}' in write")
+
+        expr_written = []
+        for expr in ctx.expr():
+            value = self.visit(expr)
+            expr_type = self.type_of_value(value)
+
+            if expr_type not in ["int", "float", "string"]:
+                raise Exception(f"Unsupported type '{expr_type}' in write")
+            expr_written.append(value)
+
+        return expr_written
